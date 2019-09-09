@@ -18,7 +18,7 @@ Eg : aws configure --profile Your_Name
 
 # Running
 
-General Pattern -- python shots.py <command> <sub-command>
+General Pattern -- python shots.py *command* *sub-command*
 
 Run the program using the command 'python shots.py' from the directory.
 
@@ -26,20 +26,22 @@ The --uni tag is optinal
 
 ## For EC2 instances command--- 
 
-To use the Listing sub-command : 'python shots.py instances list --uni=<Value>'
+To use the Listing sub-command : 'python shots.py instances list --uni=*Value*'
 
-To use the Stopping sub-command : 'python shots.py instances stop --uni=<Value>'
+To use the Stopping sub-command : 'python shots.py instances stop --uni=*Value*'
 
-To use the Starting sub-command : 'python shots.py instances start --uni=<Value>'
+To use the Starting sub-command : 'python shots.py instances start --uni=*Value*'
 
-To use the Termination sub-command : 'python shots.py instances terminate --uni=<Value>'
+To use the Termination sub-command : 'python shots.py instances terminate --uni=*Value*'
 
-To use the Create Snapshots sub-command : 'python shots.py'
+To use the Create Snapshots sub-command : 'python shots.py snapshots create_snapshots --uni=*Value*'
 
 ## For EBS volumes command---
 
-To use the Listing sub-command : 'python shots.py volumes list --uni=<Value>'
+To use the Listing sub-command : 'python shots.py volumes list --uni=*Value*'
 
 ## For EC2 snapshots command---
 
-To use the Listing sub-command : 'python shots.py snapshots list --uni=<Value>'
+To use the Listing sub-command : 'python shots.py snapshots list --uni=*Value*' -- This only prints the most recent snapshot
+
+To print all the snapshots use : 'python shots.py snapshots list --all'

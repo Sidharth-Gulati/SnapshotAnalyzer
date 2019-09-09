@@ -1,5 +1,6 @@
 import boto3
 import click
+import botocore
 
 session = boto3.Session(profile_name="Sidharth_Gulati")
 ec2 = session.resource("ec2")
@@ -17,6 +18,11 @@ def filter_instances(uni):
     return instances
 
 
+def pending_snaps(volume):
+    snaps = list(volume.snapshots.all())
+    return snaps and snaps[0].state == "pending"
+
+
 @click.group()
 def cli():
     "Shots manages EC2 instances, volumes and snapshots"
@@ -27,9 +33,12 @@ def snapshots():
     """Commands for Snapshots"""
 
 
-@snapshots.command("list", help="List snapshots")
+@snapshots.command("list", help="List Most Recent snapshots")
 @click.option("--uni", default=None, help="Only snapshots of Universe")
-def list_snapshots(uni):
+@click.option(
+    "--all", "list_all", default=False, is_flag=True, help="List all the Snapshots"
+)
+def list_snapshots(uni, list_all):
     "List EC2 snapshots"
 
     instances = filter_instances(uni)
@@ -49,6 +58,8 @@ def list_snapshots(uni):
                         )
                     )
                 )
+                if s.state == "completed" and not list_all:
+                    break
     return
 
 
@@ -117,7 +128,11 @@ def stop_instances(uni):
 
     for i in instances:
         print("Stopping {} instance ".format(i.id))
-        i.stop()
+        try:
+            i.stop()
+        except botocore.exceptions.ClientError as e:
+            print("Could not stop {}".format(i.id) + str(e))
+            continue
 
 
 @instances.command("start", help="Start EC2 instances")
@@ -129,7 +144,10 @@ def start_instances(uni):
 
     for i in instances:
         print("Starting {} instance".format(i.id))
-        i.start()
+        try:
+            i.start()
+        except botocore.exceptions.ClientError as e:
+            print("Could not start {}".format(i.id) + str(e))
 
 
 @instances.command("terminate", help="Terminate EC2 instances")
@@ -152,9 +170,27 @@ def create_snapshots(uni):
     instances = filter_instances(uni)
 
     for i in instances:
-        i.stop()
+        print("Stopping Instance : {}".format(i.id))
+        try:
+            i.stop()
+            i.wait_unitl_stopped()
+        except botocore.exceptions.ClientError as e:
+            print("Could not stop {}".format(i.id) + str(e))
+            continue
+
         for v in i.volumes.all():
+            if pending_snaps(v):
+                print("Skipping {} - snapshot already in progress".format(v.id))
+                continue
+            print("Creating Snapshot of : {}".format(v.id))
             v.create_snapshots(Description="Created by Python Script")
+        print("Starting Instance : {}".format(i.id))
+        i.start()
+        i.wait_unti_running()
+
+    print("All Snapshots have been Created")
+
+    return
 
 
 if __name__ == "__main__":
