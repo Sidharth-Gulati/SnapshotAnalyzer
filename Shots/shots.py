@@ -2,13 +2,12 @@ import boto3
 import click
 import botocore
 
-session = boto3.Session(profile_name="Sidharth_Gulati")
-ec2 = session.resource("ec2")
+session = None
 
 
 def filter_instances(uni):
     instances = []
-
+    ec2 = session.resource("ec2")
     if uni:
         filters = [{"Name": "tag:Universe", "Values": [uni]}]
         instances = ec2.instances.filter(Filters=filters)
@@ -24,8 +23,16 @@ def pending_snaps(volume):
 
 
 @click.group()
-def cli():
+@click.option("--profile", default="Sidharth_Gulati", help="Setup AWS profile")
+def cli(profile):
     "Shots manages EC2 instances, volumes and snapshots"
+
+    global session
+    if profile:
+        try:
+            session = boto3.Session(profile_name=profile)
+        except botocore.exceptions.ProfileNotFound as e:
+            raise Exception("This profile is not configured ; " + str(e))
 
 
 @cli.group("snapshots")
@@ -121,10 +128,15 @@ def list_instances(uni):
 
 @instances.command("stop", help="Stop EC2 instances")
 @click.option("--uni", default=None, help="Only instances of Universe")
-def stop_instances(uni):
+@click.option(
+    "--force", default=False, is_flag=True, help="Force stop all instances without Tag"
+)
+def stop_instances(uni, force):
     "Stop EC2 instances"
-
-    instances = filter_instances(uni)
+    if not force and not uni:
+        raise Exception("No Universe tag has been provided")
+    else:
+        instances = filter_instances(uni)
 
     for i in instances:
         print("Stopping {} instance ".format(i.id))
@@ -134,13 +146,20 @@ def stop_instances(uni):
             print("Could not stop {}".format(i.id) + str(e))
             continue
 
+    return
+
 
 @instances.command("start", help="Start EC2 instances")
 @click.option("--uni", default=None, help="Only instances of Universe")
-def start_instances(uni):
+@click.option("--force", default=False, is_flag=True, help="Force start all instances")
+def start_instances(uni, force):
     "Starting EC2 instances"
 
-    instances = filter_instances(uni)
+    if not force and not uni:
+        raise Exception("No Universe Tag has been provided")
+
+    else:
+        instances = filter_instances(uni)
 
     for i in instances:
         print("Starting {} instance".format(i.id))
@@ -152,10 +171,16 @@ def start_instances(uni):
 
 @instances.command("terminate", help="Terminate EC2 instances")
 @click.option("--uni", default=None, help="Only instances of Universe")
-def terminate_instances(uni):
+@click.option(
+    "--force", default=False, is_flag=True, help="Force terminate all instances"
+)
+def terminate_instances(uni, force):
     "Terminate EC2 instances"
+    if not force and not uni:
+        raise Exception("No Universe Tag has been provided")
 
-    instances = filter_instances(uni)
+    else:
+        instances = filter_instances(uni)
 
     for i in instances:
         print("Terminating {} instance".format(i.id))
@@ -163,11 +188,18 @@ def terminate_instances(uni):
 
 
 @instances.command("create_snapshots", help="Create Snapshots of EC2 instances")
-@click.option("--uni", default=None, help="Only instances for Universe")
-def create_snapshots(uni):
+@click.option("--uni", default=None, help="Only instances of Universe")
+@click.option(
+    "--force", default=False, is_flag=True, help="Force snapshot all instances"
+)
+def create_snapshots(uni, force):
     "Create snapshots for all EC2 instances"
 
-    instances = filter_instances(uni)
+    if not force and not uni:
+        raise Exception("No Universe Tag has been provided")
+
+    else:
+        instances = filter_instances("")
 
     for i in instances:
         print("Stopping Instance : {}".format(i.id))
@@ -189,6 +221,34 @@ def create_snapshots(uni):
         i.wait_unti_running()
 
     print("All Snapshots have been Created")
+
+    return
+
+
+@instances.command("reboot", help="Reboot all EC2 instances")
+@click.option("--uni", default=None, help="Only instances of Universe")
+@click.option(
+    "--all",
+    "all_at_once",
+    default=False,
+    is_flag=True,
+    help="Reboot all instances together",
+)
+@click.option("--force", default=False, is_flag=True, help="Force Reboot all instances")
+def reboot_instances(uni, all_at_once, force):
+    "Reboot EC2 instances one at a time"
+
+    if not force and not uni:
+        raise Exception("No Universe Tag has been provided")
+
+    else:
+        instances = filter_instances(uni)
+
+    for i in instances:
+        print("Rebooting instance {}".format(i.id))
+        i.reboot()
+        if not all_at_once:
+            i.wait_unti_running()
 
     return
 

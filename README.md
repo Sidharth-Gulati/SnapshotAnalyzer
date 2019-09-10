@@ -16,6 +16,10 @@ Installing the click package using 'conda install -c anaconda click' if using an
 shots uses aws configure to access the configuration file created by AWS cli
 Eg : aws configure --profile Your_Name
 
+A --profile sub-command has been provided in the console script to configure AWS profile : 'python shots.py --profile=Sidharth_Gulati instances list'
+
+-- AWS configure is to be used before this to setup Access key and Secret Access Key.
+
 # Running
 
 General Pattern -- python shots.py *command* *sub-command*
@@ -23,6 +27,8 @@ General Pattern -- python shots.py *command* *sub-command*
 Run the program using the command 'python shots.py' from the directory.
 
 The --uni tag is optinal
+
+The --force tag is optional for no tag value being provided -- It's available for starting, stopping, terminating, snapshotting and rebooting EC2 instances
 
 ## For EC2 instances command--- 
 
@@ -34,7 +40,9 @@ To use the Starting sub-command : 'python shots.py instances start --uni=*Value*
 
 To use the Termination sub-command : 'python shots.py instances terminate --uni=*Value*'
 
-To use the Create Snapshots sub-command : 'python shots.py snapshots create_snapshots --uni=*Value*'
+To use the Create Snapshots sub-command : 'python shots.py instances create_snapshots --uni=*Value*'
+
+To use the Rebooting sub-command : 'python shots.py' instances reboot --uni=*Value*'
 
 ## For EBS volumes command---
 
