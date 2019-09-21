@@ -42,6 +42,8 @@ To use the Termination sub-command : 'python shots.py instances terminate --uni=
 
 To use the Create Snapshots sub-command : 'python shots.py instances create_snapshots --uni=*Value*'
 
+Only previously running instances are restarted
+
 To use the Rebooting sub-command : 'python shots.py' instances reboot --uni=*Value*'
 
 ## For EBS volumes command---

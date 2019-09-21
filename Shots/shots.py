@@ -1,8 +1,11 @@
 import boto3
 import click
 import botocore
+import time
+import calendar
 
 session = None
+region = None
 
 
 def filter_instances(uni):
@@ -24,13 +27,15 @@ def pending_snaps(volume):
 
 @click.group()
 @click.option("--profile", default="Sidharth_Gulati", help="Setup AWS profile")
-def cli(profile):
+@click.option("--region", default="us-east-1", help="Setup Region for commands")
+def cli(profile, region):
     "Shots manages EC2 instances, volumes and snapshots"
 
     global session
-    if profile:
+    global region
+    if profile or region:
         try:
-            session = boto3.Session(profile_name=profile)
+            session = boto3.Session(profile_name=profile, region_name=region)
         except botocore.exceptions.ProfileNotFound as e:
             raise Exception("This profile is not configured ; " + str(e))
 
@@ -131,10 +136,14 @@ def list_instances(uni):
 @click.option(
     "--force", default=False, is_flag=True, help="Force stop all instances without Tag"
 )
-def stop_instances(uni, force):
+@click.option("--instance", default=None, help="Target by Instance id")
+def stop_instances(uni, force, instance):
     "Stop EC2 instances"
     if not force and not uni:
         raise Exception("No Universe tag has been provided")
+    if instance:
+        ids = [].append(instance)
+        instances = ec2.instances.filter(InstanceIds=ids)
     else:
         instances = filter_instances(uni)
 
@@ -152,12 +161,16 @@ def stop_instances(uni, force):
 @instances.command("start", help="Start EC2 instances")
 @click.option("--uni", default=None, help="Only instances of Universe")
 @click.option("--force", default=False, is_flag=True, help="Force start all instances")
-def start_instances(uni, force):
+@click.option("--instance", default=None, help="Target by Instance id")
+def start_instances(uni, force, instance):
     "Starting EC2 instances"
 
     if not force and not uni:
         raise Exception("No Universe Tag has been provided")
 
+    if instance:
+        ids = [].append(instance)
+        instances = ec2.instances.filter(InstanceIds=ids)
     else:
         instances = filter_instances(uni)
 
@@ -174,11 +187,15 @@ def start_instances(uni, force):
 @click.option(
     "--force", default=False, is_flag=True, help="Force terminate all instances"
 )
-def terminate_instances(uni, force):
+@click.option("--instance", default=None, help="Target by Instance id")
+def terminate_instances(uni, force, instance):
     "Terminate EC2 instances"
     if not force and not uni:
         raise Exception("No Universe Tag has been provided")
 
+    if instance:
+        ids = [].append(instance)
+        instances = ec2.instances.filter(InstanceIds=ids)
     else:
         instances = filter_instances(uni)
 
@@ -192,33 +209,59 @@ def terminate_instances(uni, force):
 @click.option(
     "--force", default=False, is_flag=True, help="Force snapshot all instances"
 )
-def create_snapshots(uni, force):
+@click.option("--instance", default=None, help="Target by Instance id")
+@click.option("--age", default=None, help="Last snapshot age")
+def create_snapshots(uni, force, instance, age):
     "Create snapshots for all EC2 instances"
 
     if not force and not uni:
         raise Exception("No Universe Tag has been provided")
 
+    if instance:
+        ids = [].append(instance)
+        instances = ec2.instances.filter(InstanceIds=ids)
+
     else:
         instances = filter_instances("")
 
-    for i in instances:
-        print("Stopping Instance : {}".format(i.id))
-        try:
-            i.stop()
-            i.wait_unitl_stopped()
-        except botocore.exceptions.ClientError as e:
-            print("Could not stop {}".format(i.id) + str(e))
-            continue
+    running_instances = instances.filter(
+        Filters=[{"Name": "instance-state-name", "Values": ["running"]}]
+    )
 
+    for i in instances:
+        aged_out = True
         for v in i.volumes.all():
+            if age:
+                utc_start_time = None
+                now = calendar.timegm(time.gmtime())
+                time_delta = now - (86400 * int(age))
+                for s in v.snapshots.all():
+                    gmt_start_time = s.start_time.strftime("%b %d, %Y @ %H:%M:%S UTC")
+                    utc_start_time = calendar.timegm(
+                        time.strptime(gmt_start_time, "%b %d, %Y @ %H:%M:%S UTC")
+                    )
+                    if s.state == "completed":
+                        break
+                    if utc_start_time:
+                        if int(utc_start_time) > int(time_delta):
+                            aged_out = False
+        if aged_out:
             if pending_snaps(v):
                 print("Skipping {} - snapshot already in progress".format(v.id))
                 continue
+            print("Stopping Instance : {}".format(i.id))
+            try:
+                i.stop()
+                i.wait_unitl_stopped()
+            except botocore.exceptions.ClientError as e:
+                print("Could not stop {}".format(i.id) + str(e))
+                continue
             print("Creating Snapshot of : {}".format(v.id))
             v.create_snapshots(Description="Created by Python Script")
-        print("Starting Instance : {}".format(i.id))
-        i.start()
-        i.wait_unti_running()
+        if i in running_instances:
+            print("Starting Instance : {}".format(i.id))
+            i.start()
+            i.wait_unti_running()
 
     print("All Snapshots have been Created")
 
@@ -235,17 +278,22 @@ def create_snapshots(uni, force):
     help="Reboot all instances together",
 )
 @click.option("--force", default=False, is_flag=True, help="Force Reboot all instances")
-def reboot_instances(uni, all_at_once, force):
+@click.option("--instance", default=None, help="Target by Instance id")
+def reboot_instances(uni, all_at_once, force, instance):
     "Reboot EC2 instances one at a time"
 
     if not force and not uni:
         raise Exception("No Universe Tag has been provided")
 
+    if instance:
+        ids = [].append(instance)
+        instances = ec2.instances.filter(InstanceIds=ids)
+
     else:
         instances = filter_instances(uni)
 
     for i in instances:
-        print("Rebooting instance {}".format(i.id))
+        print("Rebooting instance : {}".format(i.id))
         i.reboot()
         if not all_at_once:
             i.wait_unti_running()
