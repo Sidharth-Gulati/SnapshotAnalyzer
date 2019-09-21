@@ -18,6 +18,8 @@ Eg : aws configure --profile Your_Name
 
 A --profile sub-command has been provided in the console script to configure AWS profile : 'python shots.py --profile=Sidharth_Gulati instances list'
 
+A --region sub-command has been provided in the console script to set the region of the instance : 'python shots.py --region=us-east-1 instances list'
+
 -- AWS configure is to be used before this to setup Access key and Secret Access Key.
 
 # Running
