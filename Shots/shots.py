@@ -92,6 +92,42 @@ def delete_snapshots(delete_all):
     return
 
 
+@cli.group("images")
+def images():
+    """Commands for EC2 Images"""
+
+
+@images.command("list", help="List Images")
+@click.option("--uni", default=None, help="Only images of Universe")
+@click.option("--instance", default=None, help="Target instance by id")
+def list_images(uni, instance):
+    if uni:
+        instances = filter_instances(uni)
+    if instance:
+        ids = [].append(instance)
+        instances = filter_instances("", ids)
+    else:
+        instances = filter_instances("")
+
+    for i in instances:
+        if i.image:
+            print(", ".join((i.image.image_id, i.id, i.image.state)))
+
+        else:
+            continue
+
+    return
+
+
+# @images.command("dereg", help="Deregister the AMI")
+# @click.option("--ami_id", default=None, help="Target AMI By ID")
+# @click.option("--all", default=None, help="Deregister all AMIs")
+# def deregister_ami(ami_id, all):
+#     if all:
+#         instances = filter_instances("")
+#         for i in instances:
+
+
 @cli.group("volumes")
 def volumes():
     """Commands for EBS volumes"""
@@ -316,6 +352,47 @@ def reboot_instances(uni, all_at_once, force, instance):
         i.reboot()
         if not all_at_once:
             i.wait_unti_running()
+
+    return
+
+
+@instances.command("image", help="Create AMI of instance")
+@click.option("--uni", default=None, help="Only instances of Universe")
+@click.option("--force", default=False, is_flag=True, help="Force Reboot all instances")
+@click.option("--instance", default=None, help="Target by Instance id")
+def image_instances(uni, force, instance):
+    "Image EC2 instances one at a time"
+
+    if not force and not uni:
+        raise Exception("No Universe Tag has been provided")
+
+    if instance:
+        ids = [].append(instance)
+        instances = filter_instances("", ids)
+
+    else:
+        instances = filter_instances(uni)
+
+    for i in instances:
+        print("Imaging instance : {}".format(i.id))
+        i.create_image(Name="AMI FOR " + str(i.id))
+
+    return
+
+
+@instances.command("launch", help="Launch Instance by AMI")
+@click.option("--ami_id", default=None, help="Launch By AMI ID")
+@click.option("--mincount", default=1, help="Min Number of instances to launch")
+@click.option("--maxcount", default=1, help="Max Number of instances to launch")
+def launch_instances(ami_id, mincount, maxcount):
+    """Launch Instances using AMI ID"""
+
+    ec2 = session.resource("ec2")
+    instances = ec2.create_instances(
+        ImageId=ami_id, MinCount=mincount, MaxCount=maxcount
+    )
+
+    list_instances("")
 
     return
 

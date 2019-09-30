@@ -48,6 +48,10 @@ Only previously running instances are restarted
 
 To use the Rebooting sub-command : 'python shots.py' instances reboot --uni=*Value*'
 
+To use the Imaging sub-command : 'python shots.py --region=us-east-1 instances image --uni=*Value*'
+
+To use the Launching sub-command : 'python shots.py --region=us-east-1 instances launch --ami_id=*image_id*'
+
 ## For EBS volumes command---
 
 To use the Listing sub-command : 'python shots.py volumes list --uni=*Value*'
@@ -60,3 +64,6 @@ To print all the snapshots use : 'python shots.py snapshots list --all'
 
 To use the Deleting sub-command : 'python shots.py snapshots delete
 
+## For EC2 AMIs command---
+
+To use the Listing sub-command : 'python shots.py --region=us-east-1 images list'
