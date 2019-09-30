@@ -1,19 +1,19 @@
 import boto3
 import click
 import botocore
-import time
-import calendar
+import datetime
 
 session = None
-region = None
 
 
-def filter_instances(uni):
+def filter_instances(uni="", ids=None):
     instances = []
     ec2 = session.resource("ec2")
     if uni:
         filters = [{"Name": "tag:Universe", "Values": [uni]}]
         instances = ec2.instances.filter(Filters=filters)
+    if ids is not None:
+        instances = ec2.instances.filter(InstanceIds=ids)
     else:
         instances = ec2.instances.all()
 
@@ -32,7 +32,7 @@ def cli(profile, region):
     "Shots manages EC2 instances, volumes and snapshots"
 
     global session
-    global region
+
     if profile or region:
         try:
             session = boto3.Session(profile_name=profile, region_name=region)
@@ -72,6 +72,23 @@ def list_snapshots(uni, list_all):
                 )
                 if s.state == "completed" and not list_all:
                     break
+    return
+
+
+@snapshots.command("delete", help="List Most Recent snapshots")
+@click.option(
+    "--all", "delete_all", default=False, is_flag=True, help="List all the Snapshots"
+)
+def delete_snapshots(delete_all):
+    "Delete EC2 snapshots"
+
+    instances = filter_instances("")
+
+    for i in instances:
+        for v in i.volumes.all():
+            for s in v.snapshots.all():
+                print("Deleting Snapshot : {}".format(s.id))
+                s.delete()
     return
 
 
@@ -143,7 +160,7 @@ def stop_instances(uni, force, instance):
         raise Exception("No Universe tag has been provided")
     if instance:
         ids = [].append(instance)
-        instances = ec2.instances.filter(InstanceIds=ids)
+        instances = filter_instances("", ids)
     else:
         instances = filter_instances(uni)
 
@@ -170,7 +187,7 @@ def start_instances(uni, force, instance):
 
     if instance:
         ids = [].append(instance)
-        instances = ec2.instances.filter(InstanceIds=ids)
+        instances = filter_instances("", ids)
     else:
         instances = filter_instances(uni)
 
@@ -195,7 +212,7 @@ def terminate_instances(uni, force, instance):
 
     if instance:
         ids = [].append(instance)
-        instances = ec2.instances.filter(InstanceIds=ids)
+        instances = filter_instances("", ids)
     else:
         instances = filter_instances(uni)
 
@@ -219,32 +236,32 @@ def create_snapshots(uni, force, instance, age):
 
     if instance:
         ids = [].append(instance)
-        instances = ec2.instances.filter(InstanceIds=ids)
+        instances = filter_instances("", ids)
 
     else:
         instances = filter_instances("")
 
-    running_instances = instances.filter(
-        Filters=[{"Name": "instance-state-name", "Values": ["running"]}]
-    )
+    running_instances_ids = [
+        i.id
+        for i in instances.filter(
+            Filters=[{"Name": "instance-state-name", "Values": ["running"]}]
+        )
+    ]
+
+    running_instances = filter_instances("", running_instances_ids)
 
     for i in instances:
         aged_out = True
         for v in i.volumes.all():
             if age:
-                utc_start_time = None
-                now = calendar.timegm(time.gmtime())
-                time_delta = now - (86400 * int(age))
+                snap_start_time = None
+                now = datetime.datetime.now().date()
                 for s in v.snapshots.all():
-                    gmt_start_time = s.start_time.strftime("%b %d, %Y @ %H:%M:%S UTC")
-                    utc_start_time = calendar.timegm(
-                        time.strptime(gmt_start_time, "%b %d, %Y @ %H:%M:%S UTC")
-                    )
-                    if s.state == "completed":
-                        break
-                    if utc_start_time:
-                        if int(utc_start_time) > int(time_delta):
+                    snap_start_time = s.start_time.date()
+                    if snap_start_time:
+                        if (now - snap_start_time).days < int(age):
                             aged_out = False
+
         if aged_out:
             if pending_snaps(v):
                 print("Skipping {} - snapshot already in progress".format(v.id))
@@ -252,16 +269,18 @@ def create_snapshots(uni, force, instance, age):
             print("Stopping Instance : {}".format(i.id))
             try:
                 i.stop()
-                i.wait_unitl_stopped()
+                i.wait_until_stopped()
             except botocore.exceptions.ClientError as e:
                 print("Could not stop {}".format(i.id) + str(e))
                 continue
             print("Creating Snapshot of : {}".format(v.id))
-            v.create_snapshots(Description="Created by Python Script")
-        if i in running_instances:
-            print("Starting Instance : {}".format(i.id))
-            i.start()
-            i.wait_unti_running()
+            v.create_snapshot(Description="Created by Python Script")
+
+        for i in running_instances:
+            if i.state["Name"] != "running":
+                print("Starting Instance : {}".format(i.id))
+                i.start()
+                i.wait_until_running()
 
     print("All Snapshots have been Created")
 
@@ -287,7 +306,7 @@ def reboot_instances(uni, all_at_once, force, instance):
 
     if instance:
         ids = [].append(instance)
-        instances = ec2.instances.filter(InstanceIds=ids)
+        instances = filter_instances("", ids)
 
     else:
         instances = filter_instances(uni)

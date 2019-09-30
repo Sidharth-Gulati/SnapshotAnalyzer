@@ -57,3 +57,6 @@ To use the Listing sub-command : 'python shots.py volumes list --uni=*Value*'
 To use the Listing sub-command : 'python shots.py snapshots list --uni=*Value*' -- This only prints the most recent snapshot
 
 To print all the snapshots use : 'python shots.py snapshots list --all'
+
+To use the Deleting sub-command : 'python shots.py snapshots delete
+

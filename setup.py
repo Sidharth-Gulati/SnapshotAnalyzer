@@ -10,8 +10,7 @@ setup(
     packages=["Shots"],
     url="https://github.com/Sidharth-Gulati/SnapshotAnalyzer",
     install_requires=["boto3", "click"],
-    entry_points='''
+    entry_points="""
     [console_scripts]
-    shots=Shots.shots:cli''',
+    shots=Shots.shots:cli""",
 )
-
