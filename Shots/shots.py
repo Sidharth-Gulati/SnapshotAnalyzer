@@ -120,12 +120,26 @@ def list_images(uni, instance):
 
 
 # @images.command("dereg", help="Deregister the AMI")
-# @click.option("--ami_id", default=None, help="Target AMI By ID")
+# @click.option("--instance", default=None, help="Target By instance")
 # @click.option("--all", default=None, help="Deregister all AMIs")
-# def deregister_ami(ami_id, all):
+# def deregister_ami(instance, all):
 #     if all:
 #         instances = filter_instances("")
-#         for i in instances:
+#     if instance:
+#         ids = [].append(instance)
+#         instances = filter_instances("", ids)
+
+#     for i in instances:
+#         if i.image:
+#             print("Deregistering AMI : {}".format(i.image.image_id))
+#             i.image.modify_attribute(
+#                 Attribute="LaunchPermission",
+#                 LaunchPermission={"Add": [{"Group": "all"}]},
+#                 UserIds=["Sidharth_Gulati"],
+#             )
+#             i.image.deregister(DryRun=True)
+
+#     return
 
 
 @cli.group("volumes")
@@ -384,12 +398,18 @@ def image_instances(uni, force, instance):
 @click.option("--ami_id", default=None, help="Launch By AMI ID")
 @click.option("--mincount", default=1, help="Min Number of instances to launch")
 @click.option("--maxcount", default=1, help="Max Number of instances to launch")
-def launch_instances(ami_id, mincount, maxcount):
+@click.option("--type", default="t2.micro", help="Select the instance type")
+@click.option("--keypair", default="MyPrivateKey", help="Select KeyPair")
+def launch_instances(ami_id, mincount, maxcount, type, keypair):
     """Launch Instances using AMI ID"""
 
     ec2 = session.resource("ec2")
     instances = ec2.create_instances(
-        ImageId=ami_id, MinCount=mincount, MaxCount=maxcount
+        ImageId=ami_id,
+        InstanceType=type,
+        KeyName=keypair,
+        MinCount=mincount,
+        MaxCount=maxcount,
     )
 
     list_instances("")
